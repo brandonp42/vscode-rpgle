@@ -9,6 +9,7 @@ import Parser from '../../language/parser';
 import Linter from '../../language/linter';
 import { Rules } from '../../language/parserTypes';
 import path from 'path';
+import { execSync } from "child_process";
 
 type FormatTypes = "standard" | "flc";
 
@@ -18,15 +19,22 @@ async function main() {
 	const parms = process.argv.slice(2);
 
 	let cwd = process.cwd();
+	let gitFilter = '';
 	let scanGlob = `**/*.{SQLRPGLE,sqlrpgle,RPGLE,rpgle}`;
 	let maxErrors: number|undefined;
 	let outputType: FormatTypes;
 
 	for (let i = 0; i < parms.length; i++) {
-		switch (parms[0]) {
+		switch (parms[i]) {
 			case `-f`:
 			case `--files`:
 				scanGlob = parms[i + 1];
+				i++;
+				break;
+
+			case `-g`:
+			case `--git-filter`:
+				gitFilter = parms[i + 1];
 				i++;
 				break;
 
@@ -65,6 +73,9 @@ async function main() {
 				console.log(`\t--files\t\tGlob used to search for sources in the working directory.`);
 				console.log(`\t\t\tDefaults to '${scanGlob}'`);
 				console.log();
+				console.log(`\t-g`);
+				console.log(`\t--git-filter\t\tGit tree-diff tree-ish filter used to only look at changed files.`);
+				console.log();
 				console.log(`\t-m`);
 				console.log(`\t--max\t\tThe max limit of errored files before the process ends itself.`);
 				console.log();
@@ -83,7 +94,7 @@ async function main() {
 	try {
 		rules = getLintConfig(cwd);
 		parser = setupParser(cwd, scanGlob);
-		files = getFiles(cwd, scanGlob);
+		files = getFiles(cwd, scanGlob, gitFilter);
 	} catch (e) {
 		error(e.message || e);
 		process.exit(1);
@@ -198,12 +209,19 @@ function getLintConfig(cwd: string): Rules {
 	throw new Error(`Unable to locate rpglint.json`);
 }
 
-function getFiles(cwd: string, globPath: string): string[] {
-	return glob.sync(globPath, {
+function getFiles(cwd: string, globPath: string, gitFilter: string): string[] {
+	let fileList = glob.sync(globPath, {
 		cwd,
 		absolute: true,
 		nocase: true,
 	});
+
+	if (gitFilter == '') {
+		return fileList;
+	}
+
+	let gitChangedFiles = execSync(`git diff-tree --no-commit-id --name-only -r ${gitFilter}`).toString().split('\n');
+	return fileList.filter((file) => gitChangedFiles.includes(path.relative(cwd, file)));
 }
 
 function error(line: string) {
