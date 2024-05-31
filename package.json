@@ -12,7 +12,7 @@
 		"url": "https://github.com/halcyon-tech/vscode-rpgle"
 	},
 	"license": "MIT",
-	"version": "0.26.4",
+	"version": "0.26.6",
 	"engines": {
 		"vscode": "^1.70.0"
 	},
@@ -68,7 +68,7 @@
 			"view/item/context": [
 				{
 					"command": "vscode-rpgle.openLintConfig",
-					"when": "view == objectBrowser && viewItem == filter",
+					"when": "view == objectBrowser && viewItem =~ /^filter.*$/",
 					"group": "1_LibActions@2"
 				}
 			]
